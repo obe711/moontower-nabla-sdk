@@ -1,9 +1,10 @@
+const EventEmitter = require('node:events');
 const axios = require('axios');
 const mongoose = require('mongoose');
 
 
 
-class NablaDbBackup {
+class NablaDbBackup extends EventEmitter {
   constructor(options = {}) {
     this.uri = options?.uri || "mongodb://127.0.0.1:27017/nabla-db-backup";
     this.mongoOptions = {}
@@ -61,3 +62,5 @@ class NablaDbBackup {
   // 
   nablaError() { }
 }
+
+module.exports = NablaDbBackup;

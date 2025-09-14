@@ -7,8 +7,7 @@
   "author": "Obediah Klopfenstein",
   "license": "MIT",
   "scripts": {
-    "start": "cross-env NODE_ENV=development nodemon src/index.js",
-    "start:production": "pm2 start ecosystem.config.json",
+    "start": "cross-env NODE_ENV=development nodemon src/nabla-db-backup/index.js",
     "test": "jest -i --colors --verbose --detectOpenHandles",
     "test:watch": "jest -i --watchAll",
     "coverage": "jest -i --coverage",
@@ -17,7 +16,7 @@
     "lint:fix": "eslint . --fix",
     "prettier": "prettier --check **/*.js",
     "prettier:fix": "prettier --write **/*.js",
-    "prepare": "husky install",
+    "prepare": "husky",
     "db:restore": "./scripts/db.restore.sh"
   },
   "keywords": [
