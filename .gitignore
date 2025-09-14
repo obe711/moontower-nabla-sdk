@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+
+yarn.lock
+
+# yarn error logs
+yarn-error.log
+
+# Environment varibales
+.env*
+!.env*.example
+
+# Code coverage
+coverage
+
+# Mac
+.DS_Store
+
+data/
+
+.keys/
+
+cloudflare/

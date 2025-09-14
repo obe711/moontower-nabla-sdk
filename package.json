@@ -1,0 +1,54 @@
+{
+  "name": "nabla-sdk",
+  "version": "1.0.0",
+  "description": "NodeJS SDK for Moontower-Nabla services",
+  "main": "src/index.js",
+  "repository": "git@github.com:obe711/moontower-nabla-sdk.git",
+  "author": "Obediah Klopfenstein",
+  "license": "MIT",
+  "scripts": {
+    "start": "cross-env NODE_ENV=development nodemon src/index.js",
+    "start:production": "pm2 start ecosystem.config.json",
+    "test": "jest -i --colors --verbose --detectOpenHandles",
+    "test:watch": "jest -i --watchAll",
+    "coverage": "jest -i --coverage",
+    "coverage:coveralls": "jest -i --coverage --coverageReporters=text-lcov | coveralls",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prettier": "prettier --check **/*.js",
+    "prettier:fix": "prettier --write **/*.js",
+    "prepare": "husky install",
+    "db:restore": "./scripts/db.restore.sh"
+  },
+  "keywords": [
+    "moontower",
+    "db",
+    "sdk",
+    "nabla",
+    "api",
+    "guinn-partners",
+    "gp",
+    "backup"
+  ],
+  "contributors": [
+    {
+      "name": "Obediah Klopfenstein",
+      "url": "https://github.com/obe711"
+    },
+    {
+      "name": "Colleen Boehme",
+      "url": "https://github.com/lizzy596"
+    }
+  ],
+  "dependencies": {
+    "axios": "^1.12.2",
+    "csv-builder": "^1.0.1",
+    "dotenv": "^17.2.2",
+    "joi": "^18.0.1",
+    "mongoose": "^8.18.1",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
