@@ -61,6 +61,8 @@ backupSchema.statics.searchableFields = function () {
   return ['ip', 'file', 'db'];
 };
 
+backupSchema.plugin(toJSON);
+backupSchema.plugin(paginate);
 
 /**
  * Connect to Nabla DB Backup database
@@ -69,13 +71,12 @@ backupSchema.statics.searchableFields = function () {
  * @param {*} options MongoDB connection options
  * @returns 
  */
-function connectionFactory(uri, options = {}) {
-  mongoose.plugin(toJSON);
-  mongoose.plugin(paginate);
-  const conn = mongoose.createConnection(uri, options);
-  conn.model('Backup', backupSchema);
-  return conn;
-};
+// function connectionFactory(uri, options = {}) {
+
+//   const conn = mongoose.createConnection(uri, options);
+//   conn.model('Backup', backupSchema);
+//   return conn;
+// };
 
 /**
  * 
@@ -99,7 +100,11 @@ function connectionFactory(uri, options = {}) {
  *                    - totalPages - number of pages with the requested limit
  *                    - totalResults - number of results from query using the requested filter, before pagination
  */
-module.exports = function query(config, filter, options, search) {
-  const db = connectionFactory(config.uri, config.options)
-  return db.models.Backup.paginate(filter, options, search);
+// module.exports = function query(config, filter, options, search) {
+//   const db = connectionFactory(config.uri, config.options)
+//   return db.models.Backup.paginate(filter, options, search);
+// }
+
+module.exports = {
+  backupSchema
 }
