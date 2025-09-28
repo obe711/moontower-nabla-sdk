@@ -1,178 +1,295 @@
-const EventEmitter = require('node:events');
 const axios = require('axios');
-const mongoose = require('mongoose');
-const { toJSON, paginate } = require('../db/plugins');
+const pick = require("../utils/pick")
+const { version } = require("../../package.json")
+const constants = require("./constants")
 
-
-
-
-class NablaDbBackup extends EventEmitter {
+class NablaDbBackup {
   constructor(options = {}) {
-    super()
-
-    this.uri = options?.uri || "mongodb://127.0.0.1:27017/nabla-db-backup";
-    this.mongoOptions = {}
-    this.baseURL = options?.baseURL || "http://localhost:4000/v1";
-    this.basePort = options?.basePort || 4000;
-    this.nablaApiKey = options?.nablaApiKey || "1234567890";
-    this.userAgent = options?.userAgent || "Nabla-1.0.0";
-
-    mongoose.plugin(toJSON);
-    mongoose.plugin(paginate);
-
-    this.init();
+    this.userAgent = `Nabla-SDK-${version}`;
+    this.setOptions(options);
+    this.DAYS = constants.day;
+    this.HOURS = constants.hour;
+    this.INTERVALS = constants.interval;
+    return this
   }
 
-  init() {
+  /**************************************************
+   * OPTIONS
+   * ************************************************/
 
-    console.group("init")
+  /**
+   * Set nabla-db-backup options
+   * 
+   * @param {Object} options 
+   * - port {Number} - Port for nabla-db-backup server
+   * - apiKey {String} - Api Key for nabla-db-backup server
+   * @returns {this}
+   */
+  setOptions(options = {}) {
+    if (options?.port) {
+      this.setPort(options.port);
+    }
 
-    console.groupEnd()
-    this.connect().then(() => {
+    if (options?.apiKey) {
+      this.setApiKey(options.apiKey)
+    }
 
-      if (this.conn == null) {
-        console.error("conn is null")
-        console.groupEnd();
-        return this.nablaError("connect failed")
+    this._createClient();
+    return this
+  }
+
+  /**
+   * Set nabla-db-backup server port
+   * 
+   * @param {Number} port - Port for nabla-db-backup server
+   * @returns {this}
+   */
+  setPort(port) {
+    this.port = port;
+    this._createClient();
+    return this
+  }
+
+  /**
+   * Set nabla-db-backup server Api Key
+   * 
+   * @param {String} apiKey - Api Key for nabla-db-backup server
+   * @returns {this}
+   */
+  setApiKey(apiKey) {
+    this.apiKey = apiKey;
+    this._createClient();
+    return this
+  }
+
+  /**************************************************
+   * SDK
+   * ************************************************/
+
+  /**
+   * List all databases
+   * 
+   * @returns {Promise<Array>}
+   */
+  async getDatabases() {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      const res = await this.http.get("/dbs");
+      return res?.data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+  /**
+   * Get database data by db name
+   * 
+   * @returns {Promise<Object>}
+   */
+  async getDatabase(dbName) {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      const res = await this.http.get(`/dbs/${dbName}`);
+      return res?.data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+  // backups
+  /**
+   * Query stored backups
+   * 
+   * @param {Object} filter
+   * - startDate {Date} - on or after date
+   * - endDate {Date} - on or before date
+   * - db {String} - Database name
+   * 
+   * @param {Object} options (optional)
+   * - page {Number}
+   * - limit {Number}
+   * - sortBy {String}
+   * 
+   * @returns {Promise<Object>}
+   * - results {Array<Objects>}
+   * - page {Number}
+   * - limit {Number}
+   * - totalPages {Number}
+   * - totalResults {Number}
+   */
+  async queryBackups(filter, options = {}) {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      const qFilter = pick(filter, ["startDate", "endDate", "db"]);
+      const qOptions = pick(options, ["limit", "page", "sortBy"]);
+
+      const queryString = new URLSearchParams({ ...qFilter, ...qOptions }).toString();
+
+      const res = await this.http.get(`/backups?${queryString}`);
+      return res?.data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+  /**
+   * @brief Get Download link for backup
+   * 
+   * @param {ObjectId} backupId 
+   * 
+   * @returns {Promise<Object>} 
+   * - link {String} - URL for download
+   * - file {String} - file name
+   */
+  async getBackup(backupId) {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      if (!backupId) {
+        console.error("Backup ID required");
+        return null;
       }
 
-      this.axios = axios.create({
-        withCredentials: true,
-        baseURL: !!this.baseURL ? this.baseURL : `http://localhost:${this.basePort}/v1`,
-        headers: {
-          common: {
-            'x-nabla': this.nablaApiKey,
-            "User-Agent": this.userAgent
-          }
-        }
+      const res = await this.http.get(`/backups/${backupId}`);
+      return res?.data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+  /**
+   * Create a backup of a database
+   * 
+   * @param {String} db - name of database to backup 
+   * 
+   * @returns {Promise<Object>} - Database backup record 
+   */
+  async createBackup(db) {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      if (!db) {
+        console.error("Database name required");
+        return null;
+      }
+      const res = await this.http.post(`/backups`, { db });
+      return res?.data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+
+  /**
+   * Get all Automated Backups
+   * 
+   * @returns {Promise<Array<Object>>}
+   */
+  async getAutomatedBackups() {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      const res = await this.http.get(`/schedule`);
+      return res?.data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+  /**
+   * Create/Update Automated Backup
+   * 
+   * @param {String} db - database name
+   * @param {String} interval - backup frequency
+   * - 'day' = ran daily
+   * - 'week' = ran once a week
+   * - 'month' = ran every 30 days
+   * @param {Number} day - Day of the week. [0..6] = [Sun..Sat]
+   * @param {Number} hour - Hour of the day. [0..23] = [12AM..11PM]
+   * 
+   * @returns {Promise<Object>}
+   */
+  async createAutomatedBackup(db, interval, day, hour) {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      const res = await this.http.post(`/schedule`, {
+        db, interval, hour, day
       });
 
-      console.log("axios complete")
-      console.groupEnd();
-      console.log("this", this.dbName)
-      return this;
-    }).catch((err) => {
-      return this.nablaError(err)
-    })
-  }
-
-
-  // const backup = await nablaDbBackupService.createDbBackup({
-  //   db: dbStats.db,
-  //   user: req.user.id,
-  //   ip: req.clientIP,
-  //   userCount,
-  //   dbSize: dbStats.dataSize,
-  //   recordCount: dbStats.objects,
-  //   collectionCount: dbStats.collections
-  // });
-
-  createBackup = async (dbName) => {
-    try {
-      console.warn("createBackup", dbName, this)
-
-
-      // const db = this.useDb(dbName)
-      // console.log("db", db, this.conn);
-
-      // console.log("conn", this)
-
-      // await this.conn.close();
-      // this.conn = db;
-
-
-
+      return res?.data;
     } catch (err) {
-      return this.nablaError(err)
+      console.error(err);
+      return null;
     }
   }
 
-  // api
-  sendBackupRequest = async () => {
+  async removeAutomatedBackup(db) {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
     try {
-      return this.axios.post("/backups", {
-        db: this.stats.db,
-        // user: new mongoose.Types.ObjectId(),
-        ip: "127.0.0.1",
-        userCount: this.userCount,
-        dbSize: this.stats.dataSize,
-        recordCount: this.stats.objects,
-        collectionCount: this.stats.collections
-      })
+      const res = await this.http.delete(`/schedule/${db}`);
+      return res?.data;
     } catch (err) {
-      return this.nablaError(err)
+      console.error(err);
+      return null;
+    }
+  }
+
+  /**************************************************
+   * PRIVATE
+   * ************************************************/
+
+  _readyCheck() {
+    if (!this.port) {
+      this.error = "Missing nabla-db-backup port number - use 'setPort' method";
+      return false;
     }
 
+    if (!this.apiKey) {
+      this.error = "Missing nabla-db-backup api key - use 'setApiKey' method";
+      return false;
+    }
+    this.error = "";
+    return true;
   }
 
+  _createClient() {
+    if (!this.port || !this.apiKey) {
+      this.ready = false;
+      return;
+    }
 
-  // only set db here
-  useDb(database) {
-    if (this.conn === null) return this.nablaError("No Mongo Connection");
-
-
-    return this.conn.useDb(database, { useCache: true });
-  }
-
-
-  // init and get data
-  getDatabases = async () => {
-    if (this.conn === null) return this.nablaError("No Mongo Connection");
-    try {
-      this.mongoInfo = await this.conn.listDatabases();
-
-      this.databases = [...this.mongoInfo.databases.filter((db) => (
-        db.name !== "admin" && db.name !== "config" && db.name !== "local"
-      ))].map(db => db.name);
-
-      this.stats = await this.conn.db.stats();
-      this.collections = await this.conn.listCollections();
-      this.userCount = 0;
-      const found = this.collections.find(c => c.name === "users");
-      if (!!found) {
-        const Users = this.conn.collection("users");
-        this.userCount = await Users.estimatedDocumentCount()
+    this.http = axios.create({
+      withCredentials: true,
+      baseURL: `http://localhost:${this.port}/v2`,
+      headers: {
+        common: {
+          'x-nabla': this.apiKey,
+          "User-Agent": this.userAgent
+        }
       }
-      console.warn("No user DB found")
-      return this;
-    } catch (err) {
-      return this.nablaError(err)
-    }
-  }
+    });
 
-
-  async connect() {
-    try {
-      this.conn = await mongoose.createConnection(this.uri, this.mongoOptions).asPromise();
-      if (this.conn === null) return this.nablaError("No Mongo Connection");
-      await this.getDatabases();
-
-    } catch (err) {
-
-
-      this.conn = null;
-      // HANDLE ERROR
-      return this.nablaError(err);
-    }
-  }
-
-
-  get dbName() {
-    if (this.conn === null) return this.nablaError("No Mongo Connection");
-    return this.conn.name;
-  }
-
-  // 
-  nablaError = (err) => {
-    if (typeof err === "string")
-      console.warn("nablaError string", err);
-
-    if (err instanceof Error) {
-      console.warn("instanceof Error", err.message)
-      this.emit("nabla-error", err);
-      // process.exit(1);
-    }
-    return this
+    this.ready = true;
+    return this;
   }
 }
 
