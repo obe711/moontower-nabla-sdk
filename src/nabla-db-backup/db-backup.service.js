@@ -266,6 +266,13 @@ class NablaDbBackup {
     }
   }
 
+  /**
+   * Remove an Automated Backup
+   * 
+   * @param {String} db - database name
+   * 
+   * @returns {Promise<Object>}
+   */
   async removeAutomatedBackup(db) {
     if (!this._readyCheck()) {
       throw new Error(this.error);
