@@ -169,6 +169,32 @@ class NablaDbBackup {
   }
 
   /**
+   * @brief Delete a backup
+   * 
+   * @param {ObjectId} backupId 
+   * @return {<>}
+   */
+  async deleteBackup(backupId) {
+    if (!this._readyCheck()) {
+      throw new Error(this.error);
+    }
+    try {
+      if (!backupId) {
+        console.error("Backup ID required");
+        return null;
+      }
+
+      const res = await this.http.delete(`/backups/${backupId}`);
+      return res?.data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
+
+
+  /**
    * Create a backup of a database
    * 
    * @param {String} db - name of database to backup 
